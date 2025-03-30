@@ -69,7 +69,7 @@ def init_db():
     conn = sqlite3.connect('tasks.db')
     c = conn.cursor()
 
-    # Create users table with timezone field
+    # Create users table with timezone and admin fields
     c.execute('''
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY,
@@ -82,16 +82,47 @@ def init_db():
         reset_token TEXT,
         reset_token_expiry TIMESTAMP,
         timezone TEXT DEFAULT "Europe/Moscow",
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_admin BOOLEAN DEFAULT 0,
+        auto_timezone BOOLEAN DEFAULT 1
     )
     ''')
     
-    # Check if timezone column exists
+    # Check if required columns exist and add them if not
     c.execute("PRAGMA table_info(users)")
     columns = [column[1] for column in c.fetchall()]
+    
     if 'timezone' not in columns:
         c.execute('ALTER TABLE users ADD COLUMN timezone TEXT DEFAULT "Europe/Moscow"')
         conn.commit()
+        
+    if 'is_admin' not in columns:
+        c.execute('ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0')
+        conn.commit()
+        
+    if 'auto_timezone' not in columns:
+        c.execute('ALTER TABLE users ADD COLUMN auto_timezone BOOLEAN DEFAULT 1')
+        conn.commit()
+    
+    # Создаем аккаунт администратора, если его нет
+    c.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1")
+    admin_count = c.fetchone()[0]
+    
+    if admin_count == 0:
+        # Создаем аккаунт администратора с заданным паролем
+        admin_password = generate_password_hash("admin123")
+        c.execute(
+            "INSERT INTO users (username, password, email, timezone, is_admin) VALUES (?, ?, ?, ?, ?)",
+            ("admin", admin_password, "admin@example.com", "Europe/Moscow", 1)
+        )
+        conn.commit()
+        logger.info("Создан аккаунт администратора (admin@example.com)")
+    
+    # Выводим информацию о созданном администраторе для отладки
+    c.execute("SELECT username, email FROM users WHERE is_admin = 1")
+    admin_info = c.fetchone()
+    if admin_info:
+        logger.info(f"В системе есть аккаунт администратора: {admin_info[0]} ({admin_info[1]})")
 
     # Create tasks table
     c.execute('''
@@ -888,13 +919,15 @@ def set_timezone():
     """
     Устанавливает часовой пояс для пользователя через AJAX запрос
     """
-    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
-        return jsonify({'success': False, 'error': 'Только AJAX запросы'}), 400
-        
     try:
-        data = request.get_json()
-        timezone_name = data.get('timezone')
-        auto_detected = data.get('auto_detected', False)
+        data = request.get_json(silent=True)
+        if data is None:
+            # Если данные не в формате JSON, пробуем получить из формы
+            timezone_name = request.form.get('timezone')
+            auto_detected = request.form.get('auto_detected') == 'true'
+        else:
+            timezone_name = data.get('timezone')
+            auto_detected = data.get('auto_detected', False)
         
         if not timezone_name:
             return jsonify({'success': False, 'error': 'Не указан часовой пояс'}), 400

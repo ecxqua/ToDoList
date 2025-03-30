@@ -6,18 +6,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Отправляем на сервер через Ajax запрос
     if(userTimezone) {
+        // Создаем форму для отправки данных
+        const formData = new FormData();
+        formData.append('timezone', userTimezone);
+        formData.append('auto_detected', 'true');
+        
         fetch('/set_timezone', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                timezone: userTimezone,
-                auto_detected: true
-            })
+            body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Сетевая ошибка: ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
             console.log('Ответ сервера:', data);
             if(data.success) {
@@ -26,8 +29,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if(timezoneIndicator) {
                     timezoneIndicator.textContent = userTimezone;
                 }
+                
+                // Если страница была только что загружена, обновляем ее для применения часового пояса
+                if (!window.timezoneUpdated) {
+                    window.timezoneUpdated = true;
+                    // Ждем секунду и перезагружаем страницу
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                }
             }
         })
-        .catch(error => console.error('Ошибка при установке часового пояса:', error));
+        .catch(error => {
+            console.error('Ошибка при установке часового пояса:', error);
+        });
     }
 });

@@ -89,6 +89,21 @@ body.dark-theme {
 body.dark-theme .card {
     background-color: #1a1030;
     border-color: #2e1b4d;
+    color: #ffffff;
+}
+
+body.dark-theme .card-body {
+    color: #ffffff;
+}
+
+body.dark-theme .card-text {
+    color: #e0e0e0;
+}
+
+body.dark-theme .list-group-item {
+    background-color: #21164a;
+    color: #ffffff;
+    border-color: #2e1b4d;
 }
 
 body.dark-theme .card-header {
@@ -128,7 +143,35 @@ body.dark-theme .text-muted {
     color: #d1c8ff !important;
 }
 
+body.dark-theme p {
+    color: #ffffff;
+}
+
+body.dark-theme label {
+    color: #ffffff;
+}
+
+body.dark-theme small {
+    color: #d1c8ff !important;
+}
+
 body.dark-theme .alert {
+    color: #ffffff;
+}
+
+body.dark-theme .modal-content {
+    background-color: #1a1030;
+    color: #ffffff;
+    border-color: #2e1b4d;
+}
+
+body.dark-theme .modal-header, 
+body.dark-theme .modal-footer {
+    background-color: #21164a;
+    border-color: #2e1b4d;
+}
+
+body.dark-theme .modal-title {
     color: #ffffff;
 }
 

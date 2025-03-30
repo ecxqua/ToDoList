@@ -123,27 +123,30 @@ document.getElementById('test-timezone').addEventListener('click', function() {
     // Получаем часовой пояс пользователя через JavaScript API Intl
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     
+    // Создаем формы данных для отправки
+    const formData = new FormData();
+    formData.append('timezone', userTimezone);
+    formData.append('auto_detected', 'true');
+    
     fetch('/set_timezone', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify({
-            timezone: userTimezone,
-            auto_detected: true
-        })
+        body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Сетевая ошибка: ' + response.status);
+        }
+        return response.json();
+    })
     .then(data => {
         if(data.success) {
             resultDiv.innerHTML = `<div class="alert alert-success">Часовой пояс успешно определен: <strong>${data.timezone}</strong></div>`;
         } else {
-            resultDiv.innerHTML = `<div class="alert alert-danger">Ошибка: ${data.error}</div>`;
+            resultDiv.innerHTML = `<div class="alert alert-danger">Ошибка: ${data.error || 'Неизвестная ошибка'}</div>`;
         }
     })
     .catch(error => {
-        resultDiv.innerHTML = `<div class="alert alert-danger">Ошибка запроса: ${error}</div>`;
+        resultDiv.innerHTML = `<div class="alert alert-danger">Ошибка запроса: ${error.message}</div>`;
     });
 });
 </script>
