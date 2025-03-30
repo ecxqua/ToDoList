@@ -353,6 +353,11 @@ def new_task():
         category = request.form['category']
         priority = request.form['priority']
         due_date = request.form['due_date'] if request.form['due_date'] else None
+        due_time = request.form['due_time'] if 'due_time' in request.form else "23:59"
+        
+        # Объединяем дату и время, если они предоставлены
+        if due_date:
+            due_date = f"{due_date} {due_time}:00"
         
         # Проверяем, включено ли напоминание
         send_reminder = 'send_reminder' in request.form
@@ -430,6 +435,12 @@ def edit_task(task_id):
         category = request.form['category']
         priority = request.form['priority']
         due_date = request.form['due_date'] if request.form['due_date'] else None
+        due_time = request.form['due_time'] if 'due_time' in request.form else "23:59"
+        
+        # Объединяем дату и время, если они предоставлены
+        if due_date:
+            due_date = f"{due_date} {due_time}:00"
+            
         status = request.form['status']
         send_reminder = 'send_reminder' in request.form
         reminder_time = request.form.get('reminder_time', 24)
@@ -845,8 +856,13 @@ def send_reminders():
 
         try:
             # Преобразуем дату выполнения в datetime
-            due_date = datetime.strptime(due_date, '%Y-%m-%d')
-            due_date = due_date.replace(hour=23, minute=59, second=59)
+            try:
+                # Сначала пробуем формат с датой и временем
+                due_date = datetime.strptime(due_date, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                # Если не удалось, используем только дату с временем по умолчанию 23:59:59
+                due_date = datetime.strptime(due_date, '%Y-%m-%d')
+                due_date = due_date.replace(hour=23, minute=59, second=59)
             
             # Устанавливаем часовой пояс пользователя
             user_tz = timezone(user_timezone or 'Europe/Moscow')

@@ -46,7 +46,14 @@
                         </div>
                         <div class="col-md-3">
                             <label for="due_date" class="form-label">Срок выполнения</label>
-                            <input type="date" class="form-control" id="due_date" name="due_date" value="{{ task[5] or '' }}">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <input type="date" class="form-control" id="due_date" name="due_date" value="{{ task[5].split(' ')[0] if task[5] else '' }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="time" class="form-control" id="due_time" name="due_time" value="{{ task[5].split(' ')[1][:5] if task[5] and ' ' in task[5] else '23:59' }}">
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="row mb-3">
