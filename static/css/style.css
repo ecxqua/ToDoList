@@ -78,3 +78,119 @@
         margin: 5px 0;
     }
 }
+
+/* Ночная тема в фиолетовых тонах */
+body.dark-theme {
+    background-color: #0f0821;
+    color: #e0e0e0;
+}
+
+/* Стилизация карточек в ночной теме */
+body.dark-theme .card {
+    background-color: #1a1030;
+    border-color: #2e1b4d;
+}
+
+body.dark-theme .card-header {
+    background-color: #21164a;
+    border-color: #2e1b4d;
+    color: #e0e0e0;
+}
+
+/* Задачи в темной теме */
+body.dark-theme .task-card {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .task-card:hover {
+    box-shadow: 0 4px 12px rgba(118, 66, 255, 0.3);
+}
+
+/* Цвета статусов */
+body.dark-theme .alert-info {
+    background-color: #21164a;
+    border-color: #372a6a;
+    color: #e0e0e0;
+}
+
+body.dark-theme .text-muted {
+    color: #b8b5c8 !important;
+}
+
+/* Ссылки */
+body.dark-theme a {
+    color: #b183ff;
+}
+
+body.dark-theme a:hover {
+    color: #c9a6ff;
+}
+
+/* Таблицы */
+body.dark-theme .table {
+    color: #e0e0e0;
+    border-color: #3d2a5c;
+}
+
+body.dark-theme .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: #1a1030;
+}
+
+body.dark-theme .table-hover > tbody > tr:hover > * {
+    background-color: #21164a;
+}
+
+/* Навигация в ночной теме */
+body.dark-theme .navbar {
+    background-color: #21164a !important;
+}
+
+body.dark-theme .navbar-brand,
+body.dark-theme .nav-link {
+    color: #e0e0e0 !important;
+}
+
+/* Кнопки и формы */
+body.dark-theme .btn-outline-secondary {
+    color: #b183ff;
+    border-color: #b183ff;
+}
+
+body.dark-theme .btn-outline-secondary:hover {
+    background-color: #b183ff;
+    color: #0f0821;
+}
+
+body.dark-theme .form-control,
+body.dark-theme .form-select {
+    background-color: #2d1b4a;
+    border-color: #3d2a5c;
+    color: #e0e0e0;
+}
+
+body.dark-theme .form-control:focus,
+body.dark-theme .form-select:focus {
+    background-color: #352351;
+    border-color: #6938b4;
+    box-shadow: 0 0 0 0.25rem rgba(107, 56, 180, 0.25);
+}
+
+/* Статистика */
+body.dark-theme .stat-card {
+    background-color: #1a1030;
+}
+
+/* Иконка переключения темы */
+.theme-toggle {
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.theme-toggle i {
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+}
+
+.theme-toggle:hover i {
+    transform: rotate(30deg);
+}
