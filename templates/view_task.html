@@ -40,7 +40,7 @@
                         <p>
                             <strong>Напоминание:</strong> 
                             <span class="badge bg-info">
-                                <i class="bi bi-alarm"></i> За {{ task[9] }} ч. до срока
+                                <i class="bi bi-alarm"></i> {{ format_reminder_time(task[9]) }}
                             </span>
                         </p>
                         {% endif %}

@@ -63,6 +63,47 @@ def format_datetime(dt, user_timezone=None):
     except Exception as e:
         logger.error(f"Error formatting datetime: {e}")
         return str(dt)
+        
+def format_reminder_time(hours):
+    """
+    Форматирует время напоминания в более понятный формат
+    Например: 0.017 -> "1 минута", 0.5 -> "30 минут", 1 -> "1 час", 24 -> "1 день"
+    """
+    if not hours:
+        return "Не задано"
+    
+    try:
+        hours_float = float(hours)
+        
+        # Если меньше часа, переводим в минуты
+        if hours_float < 1:
+            minutes = int(hours_float * 60)
+            if minutes == 1:
+                return "За 1 минуту"
+            elif minutes < 5:
+                return f"За {minutes} минуты"
+            else:
+                return f"За {minutes} минут"
+        # Если меньше суток, показываем в часах
+        elif hours_float < 24:
+            hours_int = int(hours_float)
+            if hours_int == 1:
+                return "За 1 час"
+            elif hours_int < 5:
+                return f"За {hours_int} часа"
+            else:
+                return f"За {hours_int} часов"
+        # Если больше суток, показываем в днях
+        else:
+            days = int(hours_float / 24)
+            if days == 1:
+                return "За 1 день"
+            elif days < 5:
+                return f"За {days} дня"
+            else:
+                return f"За {days} дней"
+    except (ValueError, TypeError):
+        return f"За {hours} ч."
 
 # Initialize database
 def init_db():
@@ -296,6 +337,7 @@ def dashboard():
     return render_template('dashboard.html', 
                            tasks=tasks, 
                            format_datetime=format_datetime,
+                           format_reminder_time=format_reminder_time,
                            search_query=search_query,
                            category_filter=category_filter,
                            categories=categories)
@@ -347,7 +389,7 @@ def new_task():
         flash('Задача успешно создана!')
         return redirect(url_for('dashboard'))
 
-    return render_template('new_task.html')
+    return render_template('new_task.html', format_reminder_time=format_reminder_time)
 
 @app.route('/task/<int:task_id>')
 def view_task(task_id):
@@ -372,7 +414,7 @@ def view_task(task_id):
         flash('Задача не найдена!')
         return redirect(url_for('dashboard'))
 
-    return render_template('view_task.html', task=task, format_datetime=format_datetime)
+    return render_template('view_task.html', task=task, format_datetime=format_datetime, format_reminder_time=format_reminder_time)
 
 @app.route('/task/<int:task_id>/edit', methods=['GET', 'POST'])
 def edit_task(task_id):
@@ -419,7 +461,7 @@ def edit_task(task_id):
         flash('Задача не найдена!')
         return redirect(url_for('dashboard'))
 
-    return render_template('edit_task.html', task=task)
+    return render_template('edit_task.html', task=task, format_reminder_time=format_reminder_time)
 
 @app.route('/task/<int:task_id>/delete', methods=['POST'])
 def delete_task(task_id):
@@ -1054,7 +1096,8 @@ def admin_panel():
                           total_users=total_users,
                           total_tasks=total_tasks,
                           completed_tasks=completed_tasks,
-                          users=users)
+                          users=users,
+                          format_reminder_time=format_reminder_time)
 
 
 if __name__ == '__main__':
