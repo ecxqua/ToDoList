@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mail import Mail, Message
 import sqlite3
 from datetime import datetime, timedelta
@@ -161,7 +161,7 @@ def login():
         c = conn.cursor()
 
         try:
-            c.execute("SELECT id, password, username, timezone FROM users WHERE email = ?",
+            c.execute("SELECT id, password, username, timezone, is_admin, auto_timezone FROM users WHERE email = ?",
                       (email, ))
             user = c.fetchone()
 
@@ -169,6 +169,8 @@ def login():
                 session['user_id'] = user[0]
                 session['username'] = user[2]
                 session['timezone'] = user[3] or 'Europe/Moscow'
+                session['is_admin'] = user[4] or False
+                session['auto_timezone'] = user[5] or False
                 conn.close()
                 return redirect(url_for('dashboard'))
 
@@ -186,6 +188,8 @@ def logout():
     session.pop('user_id', None)
     session.pop('username', None)
     session.pop('timezone', None)
+    session.pop('is_admin', None)
+    session.pop('auto_timezone', None)
     return redirect(url_for('login'))
 
 # Task management routes
@@ -458,7 +462,7 @@ def profile():
     c = conn.cursor()
     
     # Получаем информацию о пользователе
-    c.execute("""SELECT username, email, pending_email, timezone 
+    c.execute("""SELECT username, email, pending_email, timezone, auto_timezone, is_admin 
                  FROM users WHERE id = ?""", (session['user_id'],))
     user = c.fetchone()
     
@@ -481,6 +485,8 @@ def profile():
                           email=user[1], 
                           pending_email=user[2],
                           timezone=user[3] or 'Europe/Moscow',
+                          auto_timezone=user[4] or False,
+                          is_admin=user[5] or False,
                           total_tasks=total_tasks,
                           completed_tasks=completed_tasks,
                           active_tasks=active_tasks,
@@ -499,6 +505,9 @@ def update_profile():
     email = request.form['email']
     timezone_name = request.form['timezone']
     
+    # Проверяем, было ли выбрано автоматическое определение часового пояса
+    auto_timezone = 'auto_timezone' in request.form
+    
     conn = sqlite3.connect('tasks.db')
     c = conn.cursor()
     
@@ -513,13 +522,14 @@ def update_profile():
     c.execute("SELECT email FROM users WHERE id = ?", (session['user_id'],))
     current_email = c.fetchone()[0]
     
-    # Обновляем имя пользователя и часовой пояс
-    c.execute("UPDATE users SET username = ?, timezone = ? WHERE id = ?", 
-              (username, timezone_name, session['user_id']))
+    # Обновляем имя пользователя, часовой пояс и настройку автоопределения пояса
+    c.execute("UPDATE users SET username = ?, timezone = ?, auto_timezone = ? WHERE id = ?", 
+              (username, timezone_name, 1 if auto_timezone else 0, session['user_id']))
     
     # Обновляем сессию
     session['username'] = username
     session['timezone'] = timezone_name
+    session['auto_timezone'] = auto_timezone
     
     # Обрабатываем смену email, если он изменился
     if email != current_email:
@@ -871,6 +881,93 @@ def start_reminder_scheduler():
         
     except Exception as e:
         logger.error(f"Ошибка запуска планировщика: {e}")
+
+
+@app.route('/set_timezone', methods=['POST'])
+def set_timezone():
+    """
+    Устанавливает часовой пояс для пользователя через AJAX запрос
+    """
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return jsonify({'success': False, 'error': 'Только AJAX запросы'}), 400
+        
+    try:
+        data = request.get_json()
+        timezone_name = data.get('timezone')
+        auto_detected = data.get('auto_detected', False)
+        
+        if not timezone_name:
+            return jsonify({'success': False, 'error': 'Не указан часовой пояс'}), 400
+            
+        # Проверяем, существует ли такой часовой пояс
+        if timezone_name not in all_timezones:
+            return jsonify({'success': False, 'error': 'Неверный часовой пояс'}), 400
+            
+        # Сохраняем в сессию
+        session['timezone'] = timezone_name
+        
+        # Если пользователь авторизован, сохраняем в базу
+        if 'user_id' in session and auto_detected:
+            conn = sqlite3.connect('tasks.db')
+            c = conn.cursor()
+            
+            # Обновляем только если у пользователя включено автоопределение
+            c.execute("SELECT auto_timezone FROM users WHERE id = ?", (session['user_id'],))
+            result = c.fetchone()
+            
+            if result and result[0]:
+                c.execute("UPDATE users SET timezone = ? WHERE id = ?", (timezone_name, session['user_id']))
+                conn.commit()
+                logger.info(f"Часовой пояс пользователя (ID: {session['user_id']}) автоматически обновлен на {timezone_name}")
+                
+            conn.close()
+            
+        return jsonify({'success': True, 'timezone': timezone_name})
+    except Exception as e:
+        logger.error(f"Ошибка при установке часового пояса: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/admin', methods=['GET'])
+def admin_panel():
+    """
+    Административная панель для управления системой
+    """
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+        
+    # Проверяем, имеет ли пользователь права администратора
+    conn = sqlite3.connect('tasks.db')
+    c = conn.cursor()
+    c.execute("SELECT is_admin FROM users WHERE id = ?", (session['user_id'],))
+    result = c.fetchone()
+    
+    if not result or not result[0]:
+        flash('У вас нет прав доступа к этой странице')
+        conn.close()
+        return redirect(url_for('dashboard'))
+    
+    # Получаем статистику системы
+    c.execute("SELECT COUNT(*) FROM users")
+    total_users = c.fetchone()[0]
+    
+    c.execute("SELECT COUNT(*) FROM tasks")
+    total_tasks = c.fetchone()[0]
+    
+    c.execute("SELECT COUNT(*) FROM tasks WHERE status = 'Завершена'")
+    completed_tasks = c.fetchone()[0]
+    
+    # Получаем список пользователей для управления
+    c.execute("SELECT id, username, email, timezone, is_admin FROM users")
+    users = c.fetchall()
+    
+    conn.close()
+    
+    return render_template('admin.html',
+                          total_users=total_users,
+                          total_tasks=total_tasks,
+                          completed_tasks=completed_tasks,
+                          users=users)
 
 
 if __name__ == '__main__':

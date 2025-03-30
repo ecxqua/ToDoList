@@ -33,14 +33,29 @@
                         <div class="row mb-3">
                             <div class="col">
                                 <h5>Часовой пояс:</h5>
-                                <select class="form-control" name="timezone">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="auto_timezone" id="auto_timezone" {% if auto_timezone %}checked{% endif %}>
+                                    <label class="form-check-label" for="auto_timezone">
+                                        Определять часовой пояс автоматически
+                                    </label>
+                                </div>
+                                <select class="form-control" name="timezone" id="timezone_select" {% if auto_timezone %}disabled{% endif %}>
                                     {% for tz_value, tz_name in timezones %}
                                     <option value="{{ tz_value }}" {% if timezone == tz_value %}selected{% endif %}>{{ tz_name }}</option>
                                     {% endfor %}
                                 </select>
                                 <small class="text-muted">Выберите ваш часовой пояс для корректного отображения времени</small>
+                                <p class="mt-2">
+                                    <strong>Текущий часовой пояс:</strong> <span id="current-timezone">{{ timezone }}</span>
+                                </p>
                             </div>
                         </div>
+                        
+                        <script>
+                        document.getElementById('auto_timezone').addEventListener('change', function() {
+                            document.getElementById('timezone_select').disabled = this.checked;
+                        });
+                        </script>
                         <div class="row mb-3">
                             <div class="col">
                                 <button type="submit" class="btn btn-primary">Сохранить изменения</button>

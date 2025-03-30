@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}Админ-панель{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Админ-панель</h2>
+            <p class="text-muted">Управление системой и мониторинг</p>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Статистика системы</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Всего пользователей
+                            <span class="badge bg-primary rounded-pill">{{ total_users }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Всего задач
+                            <span class="badge bg-primary rounded-pill">{{ total_tasks }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Завершено задач
+                            <span class="badge bg-success rounded-pill">{{ completed_tasks }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Активных задач
+                            <span class="badge bg-warning rounded-pill">{{ total_tasks - completed_tasks }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Тестирование функциональности</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Тест определения часового пояса</h5>
+                                    <p class="card-text">Проверить автоматическое определение часового пояса</p>
+                                    <button id="test-timezone" class="btn btn-outline-primary">Запустить тест</button>
+                                    <div id="timezone-result" class="mt-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Тест напоминаний</h5>
+                                    <p class="card-text">Отправить тестовые напоминания без учета времени</p>
+                                    <a href="{{ url_for('send_reminders', test_mode=1) }}" class="btn btn-outline-primary">Запустить тест</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Пользователи системы</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Имя пользователя</th>
+                                    <th>Email</th>
+                                    <th>Часовой пояс</th>
+                                    <th>Админ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user[0] }}</td>
+                                    <td>{{ user[1] }}</td>
+                                    <td>{{ user[2] }}</td>
+                                    <td>{{ user[3] or 'Не установлен' }}</td>
+                                    <td>
+                                        {% if user[4] %}
+                                        <span class="badge bg-success">Да</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Нет</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('test-timezone').addEventListener('click', function() {
+    const resultDiv = document.getElementById('timezone-result');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div> Определение часового пояса...';
+    
+    // Получаем часовой пояс пользователя через JavaScript API Intl
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    fetch('/set_timezone', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            timezone: userTimezone,
+            auto_detected: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success">Часовой пояс успешно определен: <strong>${data.timezone}</strong></div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger">Ошибка: ${data.error}</div>`;
+        }
+    })
+    .catch(error => {
+        resultDiv.innerHTML = `<div class="alert alert-danger">Ошибка запроса: ${error}</div>`;
+    });
+});
+</script>
+{% endblock %}
