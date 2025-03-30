@@ -1,4 +1,5 @@
-/* Additional styles for the application */
+
+/* Дополнительные стили для приложения */
 .task-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
