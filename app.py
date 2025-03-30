@@ -765,9 +765,18 @@ def send_reminders():
             # Проверяем, есть ли запрос на тестовую отправку
             is_test_mode = request.args.get('test_mode') == '1'
             
+            # Переводим часы в минуты для более точного сравнения
+            minutes_until_due = hours_until_due * 60
+            reminder_minutes = float(reminder_hours) * 60
+            
             # Отправляем напоминание, если время меньше порога или включен тестовый режим
-            if is_test_mode or (0 <= hours_until_due <= float(reminder_hours)):
-                add_log(f"Пора отправлять напоминание! Осталось {hours_until_due:.2f} часов до срока.", "success")
+            if is_test_mode or (0 <= minutes_until_due <= reminder_minutes):
+                # Форматируем сообщение о напоминании с минутами или часами
+                if hours_until_due < 1:
+                    minutes_until_due_rounded = round(minutes_until_due)
+                    add_log(f"Пора отправлять напоминание! Осталось {minutes_until_due_rounded} минут до срока.", "success")
+                else:
+                    add_log(f"Пора отправлять напоминание! Осталось {hours_until_due:.2f} часов до срока.", "success")
                 try:
                     # Определяем, это тестовый режим или нет
                     subject = 'Тестовое напоминание о задаче' if is_test_mode else 'Напоминание о задаче'
@@ -809,7 +818,12 @@ def send_reminders():
                 if hours_until_due < 0:
                     add_log(f"Срок задачи уже прошел, напоминание не требуется", "warning")
                 else:
-                    add_log(f"Ещё рано для напоминания. До срока больше {reminder_hours} часов.", "info")
+                    # Форматируем сообщение в зависимости от времени напоминания
+                    if float(reminder_hours) < 1:
+                        reminder_mins = int(float(reminder_hours) * 60)
+                        add_log(f"Ещё рано для напоминания. До срока больше {reminder_mins} минут.", "info")
+                    else:
+                        add_log(f"Ещё рано для напоминания. До срока больше {reminder_hours} часов.", "info")
 
         except ValueError as e:
             add_log(f"Ошибка обработки даты для задачи {task_id}: {str(e)}", "error")

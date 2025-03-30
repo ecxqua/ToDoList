@@ -62,13 +62,15 @@
                         <div class="col-md-6 mt-2" id="reminder_options" style="{% if not task[7] %}display: none;{% endif %}">
                             <label for="reminder_time" class="form-label">Напомнить за (часов до срока)</label>
                             <select class="form-select" id="reminder_time" name="reminder_time">
+                                <option value="0.017" {% if task[8] == 0.017 %}selected{% endif %}>1 минута</option>
+                                <option value="0.083" {% if task[8] == 0.083 %}selected{% endif %}>5 минут</option>
+                                <option value="0.25" {% if task[8] == 0.25 %}selected{% endif %}>15 минут</option>
+                                <option value="0.5" {% if task[8] == 0.5 %}selected{% endif %}>30 минут</option>
                                 <option value="1" {% if task[8] == 1 %}selected{% endif %}>1 час</option>
                                 <option value="3" {% if task[8] == 3 %}selected{% endif %}>3 часа</option>
                                 <option value="6" {% if task[8] == 6 %}selected{% endif %}>6 часов</option>
                                 <option value="12" {% if task[8] == 12 %}selected{% endif %}>12 часов</option>
                                 <option value="24" {% if task[8] == 24 or not task[8] %}selected{% endif %}>24 часа (1 день)</option>
-                                <option value="48" {% if task[8] == 48 %}selected{% endif %}>48 часов (2 дня)</option>
-                                <option value="72" {% if task[8] == 72 %}selected{% endif %}>72 часа (3 дня)</option>
                             </select>
                         </div>
                     </div>
