@@ -197,17 +197,41 @@ def index():
 
 @app.route('/dashboard')
 def dashboard():
+    """
+    Отображает панель управления с задачами пользователя
+    Поддерживает поиск по названию и описанию, фильтрацию по категории
+    """
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
+    # Получаем параметры поиска и фильтрации
+    search_query = request.args.get('search', '')
+    category_filter = request.args.get('category', '')
+    
     conn = sqlite3.connect('tasks.db')
     c = conn.cursor()
-
-    c.execute(
-        """
+    
+    # Базовый запрос
+    query = """
     SELECT id, title, category, priority, due_date, status, created_at 
     FROM tasks 
     WHERE user_id = ? 
+    """
+    params = [session['user_id']]
+    
+    # Добавляем условия поиска, если есть
+    if search_query:
+        query += " AND (title LIKE ? OR description LIKE ?) "
+        search_param = f"%{search_query}%"
+        params.extend([search_param, search_param])
+    
+    # Добавляем фильтрацию по категории, если указана
+    if category_filter:
+        query += " AND category = ? "
+        params.append(category_filter)
+    
+    # Добавляем сортировку
+    query += """
     ORDER BY 
         CASE status 
             WHEN 'Завершена' THEN 2
@@ -220,12 +244,25 @@ def dashboard():
             ELSE 4
         END,
         due_date
-    """, (session['user_id'], ))
-
+    """
+    
+    # Выполняем запрос с параметрами
+    c.execute(query, params)
     tasks = c.fetchall()
+    
+    # Получаем все уникальные категории для фильтра
+    c.execute("SELECT DISTINCT category FROM tasks WHERE user_id = ? ORDER BY category", 
+              (session['user_id'],))
+    categories = [row[0] for row in c.fetchall() if row[0]]  # Исключаем пустые категории
+    
     conn.close()
 
-    return render_template('dashboard.html', tasks=tasks, format_datetime=format_datetime)
+    return render_template('dashboard.html', 
+                           tasks=tasks, 
+                           format_datetime=format_datetime,
+                           search_query=search_query,
+                           category_filter=category_filter,
+                           categories=categories)
 
 @app.route('/task/new', methods=['GET', 'POST'])
 def new_task():
@@ -391,17 +428,21 @@ def analytics():
 
 @app.route('/profile', methods=['GET'])
 def profile():
+    """
+    Отображает страницу профиля пользователя
+    """
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
     conn = sqlite3.connect('tasks.db')
     c = conn.cursor()
     
-    # Get user information
-    c.execute("SELECT username, email, timezone FROM users WHERE id = ?", (session['user_id'],))
+    # Получаем информацию о пользователе
+    c.execute("""SELECT username, email, pending_email, timezone 
+                 FROM users WHERE id = ?""", (session['user_id'],))
     user = c.fetchone()
     
-    # Get task statistics
+    # Получаем статистику задач
     c.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ?", (session['user_id'],))
     total_tasks = c.fetchone()[0]
     
@@ -412,13 +453,14 @@ def profile():
     
     conn.close()
     
-    # Get all available timezones for Russia
+    # Получаем доступные часовые пояса для России
     timezones = sorted([(tz, tz) for tz in all_timezones if 'Europe/' in tz or 'Asia/' in tz])
     
     return render_template('profile.html', 
                           username=user[0], 
                           email=user[1], 
-                          timezone=user[2] or 'Europe/Moscow',
+                          pending_email=user[2],
+                          timezone=user[3] or 'Europe/Moscow',
                           total_tasks=total_tasks,
                           completed_tasks=completed_tasks,
                           active_tasks=active_tasks,
@@ -426,6 +468,10 @@ def profile():
 
 @app.route('/update_profile', methods=['POST'])
 def update_profile():
+    """
+    Обновляет профиль пользователя. 
+    При изменении email отправляет письмо для подтверждения.
+    """
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
@@ -436,28 +482,60 @@ def update_profile():
     conn = sqlite3.connect('tasks.db')
     c = conn.cursor()
     
-    # Get current user info to check if email changed
+    # Проверяем, не занята ли почта другим пользователем
+    c.execute("SELECT id FROM users WHERE email = ? AND id != ?", (email, session['user_id']))
+    if c.fetchone():
+        flash('Этот email уже используется другим пользователем!')
+        conn.close()
+        return redirect(url_for('profile'))
+    
+    # Получаем текущий email пользователя
     c.execute("SELECT email FROM users WHERE id = ?", (session['user_id'],))
     current_email = c.fetchone()[0]
     
-    # Update username and timezone
+    # Обновляем имя пользователя и часовой пояс
     c.execute("UPDATE users SET username = ?, timezone = ? WHERE id = ?", 
               (username, timezone_name, session['user_id']))
     
-    # Handle email change if needed
-    if email != current_email:
-        # In a real app, we would send verification to the new email
-        # For now, we'll just update it
-        c.execute("UPDATE users SET email = ? WHERE id = ?", (email, session['user_id']))
-    
-    conn.commit()
-    conn.close()
-    
-    # Update session data
+    # Обновляем сессию
     session['username'] = username
     session['timezone'] = timezone_name
     
-    flash('Профиль успешно обновлен!')
+    # Обрабатываем смену email, если он изменился
+    if email != current_email:
+        # Генерируем токен для подтверждения
+        token = secrets.token_urlsafe(32)
+        expiry = datetime.now() + timedelta(hours=24)
+        
+        # Сохраняем новый email как ожидающий подтверждения
+        c.execute("""UPDATE users 
+                    SET pending_email = ?,
+                        email_confirm_token = ?,
+                        email_confirm_expiry = ?
+                    WHERE id = ?""",
+                 (email, token, expiry, session['user_id']))
+        
+        # Отправляем письмо подтверждения
+        confirm_url = url_for('confirm_email', token=token, _external=True)
+        msg = Message('Подтверждение email',
+                      sender=app.config['MAIL_USERNAME'],
+                      recipients=[email])
+        msg.body = f'''Для подтверждения нового email перейдите по ссылке:
+{confirm_url}
+
+Если вы не запрашивали изменение email, проигнорируйте это сообщение.'''
+        
+        try:
+            mail.send(msg)
+            flash('На новый email отправлено письмо для подтверждения')
+        except Exception as e:
+            logger.error(f"Ошибка отправки письма: {e}")
+            flash('Ошибка отправки письма. Проверьте правильность email')
+    else:
+        flash('Профиль успешно обновлен!')
+    
+    conn.commit()
+    conn.close()
     return redirect(url_for('profile'))
 
 @app.route('/reset_password_request', methods=['GET', 'POST'])
@@ -525,5 +603,160 @@ def reset_password(token):
     conn.close()
     return render_template('reset_password.html')
 
+@app.route('/confirm_email/<token>')
+def confirm_email(token):
+    """
+    Подтверждает новый email адрес по токену
+    """
+    conn = sqlite3.connect('tasks.db')
+    c = conn.cursor()
+
+    try:
+        c.execute("""SELECT id, pending_email 
+                     FROM users 
+                     WHERE email_confirm_token = ? 
+                     AND email_confirm_expiry > datetime('now')""",
+                  (token,))
+        result = c.fetchone()
+
+        if result:
+            user_id, new_email = result
+            c.execute("""UPDATE users 
+                        SET email = ?,
+                            pending_email = NULL,
+                            email_confirm_token = NULL,
+                            email_confirm_expiry = NULL
+                        WHERE id = ?""",
+                     (new_email, user_id))
+            conn.commit()
+            flash('Email успешно подтвержден')
+            
+            # Обновляем сессию, если текущий пользователь тот же
+            if 'user_id' in session and session['user_id'] == user_id:
+                session.pop('username', None)  # Обновим данные при следующем входе
+        else:
+            flash('Недействительная или истекшая ссылка подтверждения')
+
+    except Exception as e:
+        logger.error(f"Ошибка подтверждения email: {e}")
+        flash('Произошла ошибка при обработке запроса')
+    
+    conn.close()
+    return redirect(url_for('login'))
+
+@app.route('/send_reminders')
+def send_reminders():
+    """
+    Отправляет напоминания о предстоящих задачах
+    """
+    logger.info("Проверка напоминаний...")
+    conn = sqlite3.connect('tasks.db')
+    c = conn.cursor()
+
+    # Получаем задачи с включенными напоминаниями
+    logger.info("Получение задач с включенными напоминаниями...")
+    c.execute("""
+        SELECT t.id, t.title, t.due_date, t.reminder_time, u.email, u.username, u.timezone
+        FROM tasks t
+        JOIN users u ON t.user_id = u.id
+        WHERE t.send_reminder = 1 
+        AND t.status != 'Завершена'
+        AND t.due_date IS NOT NULL
+        AND date(t.due_date) >= date('now')
+    """)
+
+    tasks = c.fetchall()
+    
+    logger.info(f"Найдено {len(tasks)} задач с напоминаниями")
+    reminders_sent = 0
+    
+    for task in tasks:
+        task_id, title, due_date, reminder_hours, email, username, user_timezone = task
+        logger.info(f"Обработка задачи: {title} (ID: {task_id})")
+        logger.info(f"Срок: {due_date}, Часов для напоминания: {reminder_hours}")
+
+        try:
+            # Преобразуем дату выполнения в datetime
+            due_date = datetime.strptime(due_date, '%Y-%m-%d')
+            due_date = due_date.replace(hour=23, minute=59, second=59)
+            
+            # Устанавливаем часовой пояс пользователя
+            user_tz = timezone(user_timezone or 'Europe/Moscow')
+            due_date = user_tz.localize(due_date)
+
+            # Проверяем, нужно ли отправить напоминание
+            now = datetime.now(user_tz)
+            time_until_due = due_date - now
+            hours_until_due = time_until_due.total_seconds() / 3600
+            logger.info(f"Часов до срока: {hours_until_due}, Порог напоминания: {reminder_hours}")
+
+            if 0 <= hours_until_due <= float(reminder_hours):
+                try:
+                    msg = Message(
+                        'Напоминание о задаче',
+                        sender=app.config['MAIL_USERNAME'],
+                        recipients=[email]
+                    )
+                    msg.body = f"""
+Здравствуйте, {username}!
+
+Напоминаем о предстоящей задаче:
+Название: {title}
+Срок выполнения: {due_date.strftime('%d.%m.%Y')}
+
+С уважением,
+Система управления задачами
+                    """
+                    logger.info(f"Отправка email на {email} для задачи: {title}")
+                    mail.send(msg)
+                    logger.info(f"Email успешно отправлен на {email}")
+                    reminders_sent += 1
+
+                    # Отключаем напоминание после отправки
+                    c.execute("UPDATE tasks SET send_reminder = 0 WHERE id = ?", (task_id,))
+                    conn.commit()
+                except Exception as e:
+                    logger.error(f"Ошибка отправки напоминания для задачи {task_id}: {str(e)}")
+
+        except ValueError as e:
+            logger.error(f"Ошибка обработки даты для задачи {task_id}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Общая ошибка для задачи {task_id}: {str(e)}")
+
+    conn.close()
+    return f"Отправлено напоминаний: {reminders_sent} из {len(tasks)}"
+
+
+def start_reminder_scheduler():
+    """
+    Запускает планировщик для регулярной отправки напоминаний
+    """
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(
+            func=lambda: requests.get(url_for('send_reminders', _external=True)), 
+            trigger='interval', 
+            minutes=30
+        )
+        scheduler.start()
+        logger.info("Планировщик напоминаний запущен")
+        
+        # Добавляем обработчик для корректного завершения планировщика
+        import atexit
+        atexit.register(lambda: scheduler.shutdown())
+        
+    except Exception as e:
+        logger.error(f"Ошибка запуска планировщика: {e}")
+
+
 if __name__ == '__main__':
+    # Добавляем импорт для запроса к нашему собственному API
+    import requests
+    
+    # Запускаем планировщик напоминаний
+    start_reminder_scheduler()
+    
+    # Запускаем приложение
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -23,6 +23,11 @@
                                 <h5>Email:</h5>
                                 <input type="email" class="form-control" name="email" value="{{ email }}" required>
                                 <small class="text-muted">Изменение email потребует подтверждения</small>
+                                {% if pending_email %}
+                                <div class="alert alert-info mt-2">
+                                    <small>Ожидает подтверждения: <strong>{{ pending_email }}</strong></small>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="row mb-3">

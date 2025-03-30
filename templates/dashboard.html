@@ -12,6 +12,40 @@
     </div>
 </div>
 
+<!-- Поиск и фильтрация -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('dashboard') }}" class="row g-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <input type="text" class="form-control" placeholder="Поиск по задачам..." 
+                                  name="search" value="{{ search_query }}">
+                            <button class="btn btn-outline-secondary" type="submit">Найти</button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" name="category" onchange="this.form.submit()">
+                            <option value="">Все категории</option>
+                            {% for category in categories %}
+                            <option value="{{ category }}" {% if category_filter == category %}selected{% endif %}>
+                                {{ category }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        {% if search_query or category_filter %}
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary w-100">Сбросить</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row mb-3">
     <div class="col">
         <div class="card">
