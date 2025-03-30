@@ -39,44 +39,92 @@
                                         Определять часовой пояс автоматически
                                     </label>
                                 </div>
-                                <select class="form-control" name="timezone" id="timezone_select" {% if auto_timezone %}disabled{% endif %}>
+                                <!-- Добавляем скрытое поле, которое всегда будет содержать актуальный часовой пояс -->
+                                <input type="hidden" name="detected_timezone" id="detected_timezone" value="{{ timezone }}">
+                                
+                                <select class="form-control{% if auto_timezone %} bg-light text-muted{% endif %}" name="timezone" id="timezone_select" {% if auto_timezone %}disabled{% endif %}>
                                     {% for tz_value, tz_name in timezones %}
                                     <option value="{{ tz_value }}" {% if timezone == tz_value %}selected{% endif %}>{{ tz_name }}</option>
                                     {% endfor %}
                                 </select>
                                 <small class="text-muted">Выберите ваш часовой пояс для корректного отображения времени</small>
                                 <p class="mt-2">
-                                    <strong>Текущий часовой пояс:</strong> <span id="current-timezone">{{ timezone }}</span>
+                                    <strong>Текущий часовой пояс:</strong> <span id="current-timezone">{{ timezone }}{% if auto_timezone %} (автоматически){% endif %}</span>
                                 </p>
                             </div>
                         </div>
                         
                         <script>
-                        document.getElementById('auto_timezone').addEventListener('change', function() {
-                            const isAutoDetect = this.checked;
-                            document.getElementById('timezone_select').disabled = isAutoDetect;
+                        document.addEventListener('DOMContentLoaded', function() {
+                            // При загрузке страницы, если автоопределение включено, сразу определяем часовой пояс
+                            const autoTimezoneCheckbox = document.getElementById('auto_timezone');
+                            if (autoTimezoneCheckbox && autoTimezoneCheckbox.checked) {
+                                updateTimezoneFromBrowser();
+                            }
                             
-                            // Если включено автоопределение, получаем часовой пояс и устанавливаем его
-                            if (isAutoDetect) {
-                                const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                                if (userTimezone) {
-                                    // Отображаем что часовой пояс определен
-                                    document.getElementById('current-timezone').textContent = userTimezone + ' (автоматически)';
-                                    
-                                    // Находим опцию с подходящим значением и выбираем её, если она есть
+                            // Добавляем обработчик изменения чекбокса
+                            autoTimezoneCheckbox.addEventListener('change', function() {
+                                const isAutoDetect = this.checked;
+                                const selectElement = document.getElementById('timezone_select');
+                                
+                                // Делаем селект недоступным и меняем его стиль
+                                selectElement.disabled = isAutoDetect;
+                                
+                                if (isAutoDetect) {
+                                    // Добавляем классы для визуального отображения неактивного элемента
+                                    selectElement.classList.add('bg-light', 'text-muted');
+                                    // Определяем часовой пояс
+                                    updateTimezoneFromBrowser();
+                                } else {
+                                    // Убираем классы визуального отображения
+                                    selectElement.classList.remove('bg-light', 'text-muted');
+                                }
+                            });
+                            
+                            // Добавляем обработчик отправки формы
+                            document.querySelector('form').addEventListener('submit', function(e) {
+                                const autoTimezoneCheckbox = document.getElementById('auto_timezone');
+                                
+                                // Если автоопределение включено, устанавливаем определенный часовой пояс
+                                if (autoTimezoneCheckbox && autoTimezoneCheckbox.checked) {
+                                    const detectedTimezone = document.getElementById('detected_timezone').value;
                                     const selectElement = document.getElementById('timezone_select');
+                                    
+                                    // Находим опцию с нужным часовым поясом и выбираем её
                                     for (let i = 0; i < selectElement.options.length; i++) {
-                                        if (selectElement.options[i].value === userTimezone) {
+                                        if (selectElement.options[i].value === detectedTimezone) {
                                             selectElement.selectedIndex = i;
                                             break;
                                         }
                                     }
                                     
-                                    // НЕ отправляем AJAX запрос - это сделает форма при отправке
-                                    // При сохранении формы мы отправим timezone и auto_timezone флаг вместе
+                                    // Временно снимаем disabled перед отправкой формы,
+                                    // чтобы значение отправилось на сервер
+                                    selectElement.disabled = false;
+                                }
+                            });
+                        });
+                        
+                        // Функция для определения часового пояса из браузера
+                        function updateTimezoneFromBrowser() {
+                            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                            if (userTimezone) {
+                                // Сохраняем в скрытое поле
+                                document.getElementById('detected_timezone').value = userTimezone;
+                                
+                                // Отображаем в интерфейсе
+                                document.getElementById('current-timezone').textContent = userTimezone + ' (автоматически)';
+                                
+                                // Находим опцию с подходящим значением и выбираем её, если она есть
+                                const selectElement = document.getElementById('timezone_select');
+                                for (let i = 0; i < selectElement.options.length; i++) {
+                                    if (selectElement.options[i].value === userTimezone) {
+                                        selectElement.selectedIndex = i;
+                                        break;
+                                    }
                                 }
                             }
-                        });
+                        }
                         </script>
                         <div class="row mb-3">
                             <div class="col">

@@ -536,11 +536,23 @@ def update_profile():
     username = request.form['username']
     email = request.form['email']
     
-    # Получаем часовой пояс из формы
-    timezone_name = request.form.get('timezone', 'Europe/Moscow')
-    
     # Проверяем, было ли выбрано автоматическое определение часового пояса
     auto_timezone = 'auto_timezone' in request.form
+    
+    # Получаем часовой пояс из правильного поля, в зависимости от настроек
+    if auto_timezone and 'detected_timezone' in request.form:
+        # Если включено автоопределение, используем определенный часовой пояс
+        timezone_name = request.form.get('detected_timezone')
+        logger.info(f"Используем автоматически определенный часовой пояс: {timezone_name}")
+    else:
+        # Иначе используем выбранный вручную
+        timezone_name = request.form.get('timezone', 'Europe/Moscow')
+        logger.info(f"Используем выбранный вручную часовой пояс: {timezone_name}")
+    
+    # Проверяем валидность часового пояса
+    if timezone_name not in all_timezones:
+        logger.warning(f"Некорректный часовой пояс: {timezone_name}, используем Europe/Moscow")
+        timezone_name = 'Europe/Moscow'
     
     conn = sqlite3.connect('tasks.db')
     c = conn.cursor()
