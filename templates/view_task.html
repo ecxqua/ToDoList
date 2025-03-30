@@ -35,6 +35,15 @@
                         <p><strong>Срок выполнения:</strong> Не указан</p>
                         {% endif %}
                         <p><strong>Создано:</strong> {{ format_datetime(task[7], session.get('timezone')) }}</p>
+                        
+                        {% if task[8] %}
+                        <p>
+                            <strong>Напоминание:</strong> 
+                            <span class="badge bg-info">
+                                <i class="bi bi-alarm"></i> За {{ task[9] }} ч. до срока
+                            </span>
+                        </p>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -58,6 +67,10 @@
                         <input type="hidden" name="priority" value="{{ task[4] }}">
                         <input type="hidden" name="due_date" value="{{ task[5] or '' }}">
                         <input type="hidden" name="status" value="Завершена">
+                        {% if task[8] %}
+                        <input type="hidden" name="send_reminder" value="on">
+                        <input type="hidden" name="reminder_time" value="{{ task[9] }}">
+                        {% endif %}
                         <button type="submit" class="btn btn-success">Отметить как выполненную</button>
                     </form>
                     {% else %}
@@ -68,6 +81,10 @@
                         <input type="hidden" name="priority" value="{{ task[4] }}">
                         <input type="hidden" name="due_date" value="{{ task[5] or '' }}">
                         <input type="hidden" name="status" value="В процессе">
+                        {% if task[8] %}
+                        <input type="hidden" name="send_reminder" value="on">
+                        <input type="hidden" name="reminder_time" value="{{ task[9] }}">
+                        {% endif %}
                         <button type="submit" class="btn btn-warning">Возобновить</button>
                     </form>
                     {% endif %}

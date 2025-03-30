@@ -49,18 +49,44 @@
                             <input type="date" class="form-control" id="due_date" name="due_date" value="{{ task[5] or '' }}">
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="send_reminder" name="send_reminder" {% if task[7] %}checked{% endif %}>
-                            <label class="form-check-label" for="send_reminder">
-                                Отправить напоминание
-                            </label>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="send_reminder" name="send_reminder" {% if task[7] %}checked{% endif %}>
+                                <label class="form-check-label" for="send_reminder">
+                                    Отправить напоминание о сроке
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mt-2" id="reminder_options" style="{% if not task[7] %}display: none;{% endif %}">
+                            <label for="reminder_time" class="form-label">Напомнить за (часов до срока)</label>
+                            <select class="form-select" id="reminder_time" name="reminder_time">
+                                <option value="1" {% if task[8] == 1 %}selected{% endif %}>1 час</option>
+                                <option value="3" {% if task[8] == 3 %}selected{% endif %}>3 часа</option>
+                                <option value="6" {% if task[8] == 6 %}selected{% endif %}>6 часов</option>
+                                <option value="12" {% if task[8] == 12 %}selected{% endif %}>12 часов</option>
+                                <option value="24" {% if task[8] == 24 or not task[8] %}selected{% endif %}>24 часа (1 день)</option>
+                                <option value="48" {% if task[8] == 48 %}selected{% endif %}>48 часов (2 дня)</option>
+                                <option value="72" {% if task[8] == 72 %}selected{% endif %}>72 часа (3 дня)</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="reminder_time" class="form-label">За сколько часов напомнить</label>
-                        <input type="number" class="form-control" id="reminder_time" name="reminder_time" value="{{ task[8] or 24 }}" min="1" max="72">
-                    </div>
+                    
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const reminderCheck = document.getElementById('send_reminder');
+                            const reminderOptions = document.getElementById('reminder_options');
+                            
+                            reminderCheck.addEventListener('change', function() {
+                                if (this.checked) {
+                                    reminderOptions.style.display = 'block';
+                                } else {
+                                    reminderOptions.style.display = 'none';
+                                }
+                            });
+                        });
+                    </script>
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('view_task', task_id=task[0]) }}" class="btn btn-outline-secondary">Отмена</a>
                         <button type="submit" class="btn btn-primary">Сохранить изменения</button>

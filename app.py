@@ -275,19 +275,38 @@ def new_task():
         category = request.form['category']
         priority = request.form['priority']
         due_date = request.form['due_date'] if request.form['due_date'] else None
+        
+        # Проверяем, включено ли напоминание
+        send_reminder = 'send_reminder' in request.form
+        reminder_time = request.form.get('reminder_time', 24)  # По умолчанию за 24 часа
 
         conn = sqlite3.connect('tasks.db')
         c = conn.cursor()
 
         c.execute(
             """
-        INSERT INTO tasks (user_id, title, description, category, priority, due_date)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO tasks (user_id, title, description, category, priority, due_date, send_reminder, reminder_time)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (session['user_id'], title, description, category, priority,
-              due_date))
+              due_date, send_reminder, reminder_time))
 
+        # Получаем ID только что созданной задачи
+        task_id = c.lastrowid
+        
         conn.commit()
         conn.close()
+        
+        # Если включено напоминание и дата окончания сегодня или скоро,
+        # немедленно проверяем необходимость отправки напоминания
+        if send_reminder and due_date:
+            try:
+                import requests
+                # Делаем асинхронный запрос к API напоминаний
+                requests.get(url_for('send_reminders', _external=True), timeout=0.1)
+                logger.info(f"Запрошена немедленная проверка напоминаний для новой задачи ID: {task_id}")
+            except Exception as e:
+                # Игнорируем ошибки таймаута, так как запрос выполняется в фоне
+                pass
 
         flash('Задача успешно создана!')
         return redirect(url_for('dashboard'))
@@ -304,7 +323,8 @@ def view_task(task_id):
 
     c.execute(
         """
-    SELECT id, title, description, category, priority, due_date, status, created_at
+    SELECT id, title, description, category, priority, due_date, status, created_at, 
+           send_reminder, reminder_time
     FROM tasks 
     WHERE id = ? AND user_id = ?
     """, (task_id, session['user_id']))
@@ -649,12 +669,58 @@ def send_reminders():
     """
     Отправляет напоминания о предстоящих задачах
     """
-    logger.info("Проверка напоминаний...")
+    logger.info("✓ Начало проверки напоминаний...")
+    
+    # HTML для вывода результатов
+    result_html = """
+    <html>
+    <head>
+        <title>Проверка напоминаний</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+        <style>
+            body { padding: 20px; }
+            .log-entry { margin-bottom: 10px; }
+            .log-info { color: #0d6efd; }
+            .log-warning { color: #ffc107; }
+            .log-error { color: #dc3545; }
+            .log-success { color: #198754; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2 class="mb-4">Отчёт о проверке напоминаний</h2>
+            <div class="card">
+                <div class="card-body">
+                    <div id="log">
+    """
+    
+    def add_log(message, level="info"):
+        nonlocal result_html
+        icon = "bi-info-circle"
+        if level == "warning":
+            icon = "bi-exclamation-triangle"
+        elif level == "error":
+            icon = "bi-x-circle"
+        elif level == "success":
+            icon = "bi-check-circle"
+            
+        result_html += f'<div class="log-entry log-{level}"><i class="bi {icon} me-2"></i> {message}</div>\n'
+        
+        if level == "info":
+            logger.info(message)
+        elif level == "warning":
+            logger.warning(message)
+        elif level == "error":
+            logger.error(message)
+        elif level == "success":
+            logger.info(message)
+    
     conn = sqlite3.connect('tasks.db')
     c = conn.cursor()
 
     # Получаем задачи с включенными напоминаниями
-    logger.info("Получение задач с включенными напоминаниями...")
+    add_log("Поиск задач с включенными напоминаниями...")
     c.execute("""
         SELECT t.id, t.title, t.due_date, t.reminder_time, u.email, u.username, u.timezone
         FROM tasks t
@@ -667,13 +733,17 @@ def send_reminders():
 
     tasks = c.fetchall()
     
-    logger.info(f"Найдено {len(tasks)} задач с напоминаниями")
+    if len(tasks) == 0:
+        add_log(f"Задач с включенными напоминаниями не найдено", "warning")
+    else:
+        add_log(f"Найдено {len(tasks)} задач с напоминаниями", "success")
+    
     reminders_sent = 0
     
     for task in tasks:
         task_id, title, due_date, reminder_hours, email, username, user_timezone = task
-        logger.info(f"Обработка задачи: {title} (ID: {task_id})")
-        logger.info(f"Срок: {due_date}, Часов для напоминания: {reminder_hours}")
+        add_log(f"Проверка задачи: {title} (ID: {task_id})")
+        add_log(f"Срок: {due_date}, Часов для напоминания: {reminder_hours}")
 
         try:
             # Преобразуем дату выполнения в datetime
@@ -682,15 +752,18 @@ def send_reminders():
             
             # Устанавливаем часовой пояс пользователя
             user_tz = timezone(user_timezone or 'Europe/Moscow')
-            due_date = user_tz.localize(due_date)
+            localized_due_date = user_tz.localize(due_date)
 
             # Проверяем, нужно ли отправить напоминание
             now = datetime.now(user_tz)
-            time_until_due = due_date - now
+            time_until_due = localized_due_date - now
             hours_until_due = time_until_due.total_seconds() / 3600
-            logger.info(f"Часов до срока: {hours_until_due}, Порог напоминания: {reminder_hours}")
+            add_log(f"Текущее время пользователя: {now.strftime('%d.%m.%Y %H:%M:%S')}")
+            add_log(f"Срок с учетом часового пояса: {localized_due_date.strftime('%d.%m.%Y %H:%M:%S')}")
+            add_log(f"Часов до срока: {hours_until_due:.2f}, Порог напоминания: {reminder_hours}")
 
             if 0 <= hours_until_due <= float(reminder_hours):
+                add_log(f"Пора отправлять напоминание! Осталось {hours_until_due:.2f} часов до срока.", "success")
                 try:
                     msg = Message(
                         'Напоминание о задаче',
@@ -702,29 +775,50 @@ def send_reminders():
 
 Напоминаем о предстоящей задаче:
 Название: {title}
-Срок выполнения: {due_date.strftime('%d.%m.%Y')}
+Срок выполнения: {localized_due_date.strftime('%d.%m.%Y')}
 
 С уважением,
 Система управления задачами
                     """
-                    logger.info(f"Отправка email на {email} для задачи: {title}")
+                    add_log(f"Отправка email на {email} для задачи: {title}")
                     mail.send(msg)
-                    logger.info(f"Email успешно отправлен на {email}")
+                    add_log(f"Email успешно отправлен на {email}", "success")
                     reminders_sent += 1
 
                     # Отключаем напоминание после отправки
                     c.execute("UPDATE tasks SET send_reminder = 0 WHERE id = ?", (task_id,))
                     conn.commit()
+                    add_log(f"Напоминание отключено (флаг send_reminder установлен в 0)")
                 except Exception as e:
-                    logger.error(f"Ошибка отправки напоминания для задачи {task_id}: {str(e)}")
+                    add_log(f"Ошибка отправки напоминания для задачи {task_id}: {str(e)}", "error")
+            else:
+                if hours_until_due < 0:
+                    add_log(f"Срок задачи уже прошел, напоминание не требуется", "warning")
+                else:
+                    add_log(f"Ещё рано для напоминания. До срока больше {reminder_hours} часов.", "info")
 
         except ValueError as e:
-            logger.error(f"Ошибка обработки даты для задачи {task_id}: {str(e)}")
+            add_log(f"Ошибка обработки даты для задачи {task_id}: {str(e)}", "error")
         except Exception as e:
-            logger.error(f"Общая ошибка для задачи {task_id}: {str(e)}")
+            add_log(f"Общая ошибка для задачи {task_id}: {str(e)}", "error")
 
     conn.close()
-    return f"Отправлено напоминаний: {reminders_sent} из {len(tasks)}"
+    
+    # Завершаем HTML отчет
+    result_html += f"""
+                    </div>
+                    <div class="alert alert-{'success' if reminders_sent > 0 else 'info'} mt-3">
+                        Итого: отправлено напоминаний: {reminders_sent} из {len(tasks)}
+                    </div>
+                    <a href="/dashboard" class="btn btn-primary">Вернуться на дашборд</a>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return result_html
 
 
 def start_reminder_scheduler():
@@ -738,10 +832,10 @@ def start_reminder_scheduler():
         scheduler.add_job(
             func=lambda: requests.get(url_for('send_reminders', _external=True)), 
             trigger='interval', 
-            minutes=30
+            minutes=1  # Изменено с 30 на 1 для более быстрого тестирования
         )
         scheduler.start()
-        logger.info("Планировщик напоминаний запущен")
+        logger.info("Планировщик напоминаний запущен с интервалом 1 минута")
         
         # Добавляем обработчик для корректного завершения планировщика
         import atexit

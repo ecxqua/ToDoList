@@ -41,6 +41,45 @@
                             <input type="date" class="form-control" id="due_date" name="due_date">
                         </div>
                     </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="send_reminder" name="send_reminder">
+                                <label class="form-check-label" for="send_reminder">
+                                    Отправить напоминание о сроке
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mt-2" id="reminder_options" style="display: none;">
+                            <label for="reminder_time" class="form-label">Напомнить за (часов до срока)</label>
+                            <select class="form-select" id="reminder_time" name="reminder_time">
+                                <option value="1">1 час</option>
+                                <option value="3">3 часа</option>
+                                <option value="6">6 часов</option>
+                                <option value="12">12 часов</option>
+                                <option value="24" selected>24 часа (1 день)</option>
+                                <option value="48">48 часов (2 дня)</option>
+                                <option value="72">72 часа (3 дня)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const reminderCheck = document.getElementById('send_reminder');
+                            const reminderOptions = document.getElementById('reminder_options');
+                            
+                            reminderCheck.addEventListener('change', function() {
+                                if (this.checked) {
+                                    reminderOptions.style.display = 'block';
+                                } else {
+                                    reminderOptions.style.display = 'none';
+                                }
+                            });
+                        });
+                    </script>
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Отмена</a>
                         <button type="submit" class="btn btn-primary">Создать задачу</button>
