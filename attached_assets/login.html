@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Вход - Система управления задачами{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-body">
+                <h2 class="card-title text-center mb-4">Вход в систему</h2>
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Пароль</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Войти</button>
+                    </div>
+                </form>
+                <div class="text-center mt-3">
+                    <p>Нет аккаунта? <a href="{{ url_for('register') }}">Зарегистрироваться</a></p>
+                    <p><a href="{{ url_for('reset_password_request') }}">Забыли пароль?</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

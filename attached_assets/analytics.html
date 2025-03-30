@@ -1,0 +1,191 @@
+
+{% extends 'base.html' %}
+
+{% block title %}Аналитика - Система управления задачами{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Аналитика задач</h1>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="card-title m-0">По категориям</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="card-title m-0">По приоритетам</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="priorityChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="card-title m-0">По статусам</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="card-title m-0">Распределение задач по категориям</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Категория</th>
+                            <th>Количество задач</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category in categories %}
+                        <tr>
+                            <td>{{ category[0] }}</td>
+                            <td>{{ category[1] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="card-title m-0">Распределение задач по статусам</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Статус</th>
+                            <th>Количество задач</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for status in statuses %}
+                        <tr>
+                            <td>{{ status[0] }}</td>
+                            <td>{{ status[1] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Данные для графиков
+        const categoryLabels = [{% for category in categories %}'{{ category[0] }}',{% endfor %}];
+        const categoryData = [{% for category in categories %}{{ category[1] }},{% endfor %}];
+        
+        const priorityLabels = [{% for priority in priorities %}'{{ priority[0] }}',{% endfor %}];
+        const priorityData = [{% for priority in priorities %}{{ priority[1] }},{% endfor %}];
+        
+        const statusLabels = [{% for status in statuses %}'{{ status[0] }}',{% endfor %}];
+        const statusData = [{% for status in statuses %}{{ status[1] }},{% endfor %}];
+        
+        // График категорий
+        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        new Chart(categoryCtx, {
+            type: 'pie',
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    data: categoryData,
+                    backgroundColor: [
+                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+        
+        // График приоритетов
+        const priorityCtx = document.getElementById('priorityChart').getContext('2d');
+        new Chart(priorityCtx, {
+            type: 'doughnut',
+            data: {
+                labels: priorityLabels,
+                datasets: [{
+                    data: priorityData,
+                    backgroundColor: [
+                        '#dc3545', '#ffc107', '#28a745'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+        
+        // График статусов
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        new Chart(statusCtx, {
+            type: 'bar',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    label: 'Количество задач',
+                    data: statusData,
+                    backgroundColor: [
+                        '#17a2b8', '#007bff', '#28a745'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

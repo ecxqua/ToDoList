@@ -1,0 +1,54 @@
+
+{% extends 'base.html' %}
+
+{% block title %}Новая задача - Система управления задачами{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body">
+                <h2 class="card-title mb-4">Создание новой задачи</h2>
+                <form method="POST" action="{{ url_for('new_task') }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Название задачи</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="category" class="form-label">Категория</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="Работа">Работа</option>
+                                <option value="Личное">Личное</option>
+                                <option value="Учёба">Учёба</option>
+                                <option value="Проект">Проект</option>
+                                <option value="Другое">Другое</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="priority" class="form-label">Приоритет</label>
+                            <select class="form-select" id="priority" name="priority">
+                                <option value="Высокий">Высокий</option>
+                                <option value="Средний" selected>Средний</option>
+                                <option value="Низкий">Низкий</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="due_date" class="form-label">Срок выполнения</label>
+                            <input type="date" class="form-control" id="due_date" name="due_date">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Отмена</a>
+                        <button type="submit" class="btn btn-primary">Создать задачу</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
