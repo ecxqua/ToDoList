@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ task[1] }} - Просмотр задачи{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="m-0">{{ task[1] }}</h3>
+                <div>
+                    <a href="{{ url_for('edit_task', task_id=task[0]) }}" class="btn btn-outline-primary btn-sm">Редактировать</a>
+                    <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">Удалить</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p><strong>Категория:</strong> {{ task[3] }}</p>
+                        <p><strong>Приоритет:</strong> 
+                            <span class="badge {% if task[4] == 'Высокий' %}bg-danger{% elif task[4] == 'Средний' %}bg-warning text-dark{% elif task[4] == 'Низкий' %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ task[4] }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Статус:</strong> 
+                            <span class="badge {% if task[6] == 'Новая' %}bg-info{% elif task[6] == 'В процессе' %}bg-primary{% elif task[6] == 'Завершена' %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ task[6] }}
+                            </span>
+                        </p>
+                        {% if task[5] %}
+                        <p><strong>Срок выполнения:</strong> {{ format_datetime(task[5], session.get('timezone')) }}</p>
+                        {% else %}
+                        <p><strong>Срок выполнения:</strong> Не указан</p>
+                        {% endif %}
+                        <p><strong>Создано:</strong> {{ format_datetime(task[7], session.get('timezone')) }}</p>
+                    </div>
+                </div>
+
+                <h5>Описание</h5>
+                <div class="p-3 bg-light rounded mb-4">
+                    {% if task[2] %}
+                    <p>{{ task[2] | replace('\n', '<br>') | safe }}</p>
+                    {% else %}
+                    <p class="text-muted">Описание отсутствует</p>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Назад к списку</a>
+
+                    {% if task[6] != 'Завершена' %}
+                    <form action="{{ url_for('edit_task', task_id=task[0]) }}" method="POST">
+                        <input type="hidden" name="title" value="{{ task[1] }}">
+                        <input type="hidden" name="description" value="{{ task[2] or '' }}">
+                        <input type="hidden" name="category" value="{{ task[3] }}">
+                        <input type="hidden" name="priority" value="{{ task[4] }}">
+                        <input type="hidden" name="due_date" value="{{ task[5] or '' }}">
+                        <input type="hidden" name="status" value="Завершена">
+                        <button type="submit" class="btn btn-success">Отметить как выполненную</button>
+                    </form>
+                    {% else %}
+                    <form action="{{ url_for('edit_task', task_id=task[0]) }}" method="POST">
+                        <input type="hidden" name="title" value="{{ task[1] }}">
+                        <input type="hidden" name="description" value="{{ task[2] or '' }}">
+                        <input type="hidden" name="category" value="{{ task[3] }}">
+                        <input type="hidden" name="priority" value="{{ task[4] }}">
+                        <input type="hidden" name="due_date" value="{{ task[5] or '' }}">
+                        <input type="hidden" name="status" value="В процессе">
+                        <button type="submit" class="btn btn-warning">Возобновить</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal для подтверждения удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteModalLabel">Подтверждение удаления</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Вы уверены, что хотите удалить задачу "{{ task[1] }}"?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <form action="{{ url_for('delete_task', task_id=task[0]) }}" method="POST">
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

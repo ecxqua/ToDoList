@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактирование - {{ task[1] }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body">
+                <h2 class="card-title mb-4">Редактирование задачи</h2>
+                <form method="POST" action="{{ url_for('edit_task', task_id=task[0]) }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Название задачи</label>
+                        <input type="text" class="form-control" id="title" name="title" value="{{ task[1] }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ task[2] or '' }}</textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label for="category" class="form-label">Категория</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="Работа" {% if task[3] == 'Работа' %}selected{% endif %}>Работа</option>
+                                <option value="Личное" {% if task[3] == 'Личное' %}selected{% endif %}>Личное</option>
+                                <option value="Учёба" {% if task[3] == 'Учёба' %}selected{% endif %}>Учёба</option>
+                                <option value="Проект" {% if task[3] == 'Проект' %}selected{% endif %}>Проект</option>
+                                <option value="Другое" {% if task[3] == 'Другое' %}selected{% endif %}>Другое</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="priority" class="form-label">Приоритет</label>
+                            <select class="form-select" id="priority" name="priority">
+                                <option value="Высокий" {% if task[4] == 'Высокий' %}selected{% endif %}>Высокий</option>
+                                <option value="Средний" {% if task[4] == 'Средний' %}selected{% endif %}>Средний</option>
+                                <option value="Низкий" {% if task[4] == 'Низкий' %}selected{% endif %}>Низкий</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="status" class="form-label">Статус</label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="Новая" {% if task[6] == 'Новая' %}selected{% endif %}>Новая</option>
+                                <option value="В процессе" {% if task[6] == 'В процессе' %}selected{% endif %}>В процессе</option>
+                                <option value="Завершена" {% if task[6] == 'Завершена' %}selected{% endif %}>Завершена</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="due_date" class="form-label">Срок выполнения</label>
+                            <input type="date" class="form-control" id="due_date" name="due_date" value="{{ task[5] or '' }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="send_reminder" name="send_reminder" {% if task[7] %}checked{% endif %}>
+                            <label class="form-check-label" for="send_reminder">
+                                Отправить напоминание
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reminder_time" class="form-label">За сколько часов напомнить</label>
+                        <input type="number" class="form-control" id="reminder_time" name="reminder_time" value="{{ task[8] or 24 }}" min="1" max="72">
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('view_task', task_id=task[0]) }}" class="btn btn-outline-secondary">Отмена</a>
+                        <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
