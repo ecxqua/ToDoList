@@ -104,7 +104,7 @@ def init_db():
         c.execute('ALTER TABLE users ADD COLUMN auto_timezone BOOLEAN DEFAULT 1')
         conn.commit()
     
-    # Создаем аккаунт администратора, если его нет
+    # Проверяем наличие аккаунта администратора
     c.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1")
     admin_count = c.fetchone()[0]
     
@@ -112,11 +112,11 @@ def init_db():
         # Создаем аккаунт администратора с заданным паролем
         admin_password = generate_password_hash("admin123")
         c.execute(
-            "INSERT INTO users (username, password, email, timezone, is_admin) VALUES (?, ?, ?, ?, ?)",
-            ("admin", admin_password, "admin@example.com", "Europe/Moscow", 1)
+            "INSERT INTO users (username, password, email, timezone, is_admin, auto_timezone) VALUES (?, ?, ?, ?, ?, ?)",
+            ("admin", admin_password, "admin@example.com", "Europe/Moscow", 1, 1)
         )
         conn.commit()
-        logger.info("Создан аккаунт администратора (admin@example.com)")
+        logger.info("Создан аккаунт администратора (admin@example.com с паролем admin123)")
     
     # Выводим информацию о созданном администраторе для отладки
     c.execute("SELECT username, email FROM users WHERE is_admin = 1")
