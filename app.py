@@ -156,6 +156,7 @@ def register():
         password = request.form['password']
         email = request.form['email']
         timezone_name = request.form.get('timezone', 'Europe/Moscow')
+        auto_timezone = request.form.get('auto_timezone') == 'on'
 
         conn = sqlite3.connect('tasks.db')
         c = conn.cursor()
@@ -171,8 +172,8 @@ def register():
         # Hash password and save user
         password_hash = generate_password_hash(password)
         c.execute(
-            "INSERT INTO users (username, password, email, timezone) VALUES (?, ?, ?, ?)",
-            (username, password_hash, email, timezone_name))
+            "INSERT INTO users (username, password, email, timezone, auto_timezone) VALUES (?, ?, ?, ?, ?)",
+            (username, password_hash, email, timezone_name, 1 if auto_timezone else 0))
         conn.commit()
         conn.close()
 
@@ -799,25 +800,43 @@ def send_reminders():
             now = datetime.now(user_tz)
             time_until_due = localized_due_date - now
             hours_until_due = time_until_due.total_seconds() / 3600
+            
+            # Рассчитываем порог напоминания в минутах
+            # Переводим напоминание из часов в минуты для удобства
+            reminder_minutes = float(reminder_hours) * 60
+            minutes_until_due = hours_until_due * 60
+            
+            # Создаем понятные тексты для логов и интерфейса
+            # Форматируем время до дедлайна
+            time_left_text = ""
+            if hours_until_due < 0:
+                time_left_text = "Срок уже прошел"
+            elif hours_until_due < 1:
+                time_left_text = f"Осталось {int(minutes_until_due)} минут"
+            elif hours_until_due < 24:
+                time_left_text = f"Осталось {int(hours_until_due)} часов и {int(minutes_until_due % 60)} минут"
+            else:
+                days = int(hours_until_due / 24)
+                hours = int(hours_until_due % 24)
+                time_left_text = f"Осталось {days} дней и {hours} часов"
+            
+            # Форматируем порог напоминания
+            threshold_text = ""
+            if reminder_minutes < 60:
+                threshold_text = f"{int(reminder_minutes)} минут"
+            else:
+                threshold_text = f"{float(reminder_hours):.1f} часов"
+            
             add_log(f"Текущее время пользователя: {now.strftime('%d.%m.%Y %H:%M:%S')}")
             add_log(f"Срок с учетом часового пояса: {localized_due_date.strftime('%d.%m.%Y %H:%M:%S')}")
-            add_log(f"Часов до срока: {hours_until_due:.2f}, Порог напоминания: {reminder_hours}")
+            add_log(f"До срока: {time_left_text}, Напоминание за: {threshold_text}")
             
             # Проверяем, есть ли запрос на тестовую отправку
             is_test_mode = request.args.get('test_mode') == '1'
             
-            # Переводим часы в минуты для более точного сравнения
-            minutes_until_due = hours_until_due * 60
-            reminder_minutes = float(reminder_hours) * 60
-            
             # Отправляем напоминание, если время меньше порога или включен тестовый режим
             if is_test_mode or (0 <= minutes_until_due <= reminder_minutes):
-                # Форматируем сообщение о напоминании с минутами или часами
-                if hours_until_due < 1:
-                    minutes_until_due_rounded = round(minutes_until_due)
-                    add_log(f"Пора отправлять напоминание! Осталось {minutes_until_due_rounded} минут до срока.", "success")
-                else:
-                    add_log(f"Пора отправлять напоминание! Осталось {hours_until_due:.2f} часов до срока.", "success")
+                add_log(f"Пора отправлять напоминание! {time_left_text} до срока.", "success")
                 try:
                     # Определяем, это тестовый режим или нет
                     subject = 'Тестовое напоминание о задаче' if is_test_mode else 'Напоминание о задаче'
@@ -940,18 +959,26 @@ def set_timezone():
         session['timezone'] = timezone_name
         
         # Если пользователь авторизован, сохраняем в базу
-        if 'user_id' in session and auto_detected:
+        if 'user_id' in session:
             conn = sqlite3.connect('tasks.db')
             c = conn.cursor()
             
-            # Обновляем только если у пользователя включено автоопределение
-            c.execute("SELECT auto_timezone FROM users WHERE id = ?", (session['user_id'],))
-            result = c.fetchone()
-            
-            if result and result[0]:
+            # Если это автоматическое определение
+            if auto_detected:
+                # Сначала проверим, включено ли у пользователя автоопределение
+                c.execute("SELECT auto_timezone FROM users WHERE id = ?", (session['user_id'],))
+                result = c.fetchone()
+                
+                if result and result[0]:
+                    # Если включено, обновляем часовой пояс
+                    c.execute("UPDATE users SET timezone = ? WHERE id = ?", (timezone_name, session['user_id']))
+                    conn.commit()
+                    logger.info(f"Часовой пояс пользователя (ID: {session['user_id']}) автоматически обновлен на {timezone_name}")
+            else:
+                # Если это ручная установка через форму, просто обновляем часовой пояс
                 c.execute("UPDATE users SET timezone = ? WHERE id = ?", (timezone_name, session['user_id']))
                 conn.commit()
-                logger.info(f"Часовой пояс пользователя (ID: {session['user_id']}) автоматически обновлен на {timezone_name}")
+                logger.info(f"Часовой пояс пользователя (ID: {session['user_id']}) вручную обновлен на {timezone_name}")
                 
             conn.close()
             

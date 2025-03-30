@@ -23,12 +23,24 @@
                     </div>
                     <div class="mb-3">
                         <label for="timezone" class="form-label">Часовой пояс</label>
-                        <select class="form-control" id="timezone" name="timezone">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="auto_timezone" id="auto_timezone" checked>
+                            <label class="form-check-label" for="auto_timezone">
+                                Определять часовой пояс автоматически
+                            </label>
+                        </div>
+                        <select class="form-control" id="timezone" name="timezone" disabled>
                             {% for tz_value, tz_name in timezones %}
                             <option value="{{ tz_value }}" {% if tz_value == 'Europe/Moscow' %}selected{% endif %}>{{ tz_name }}</option>
                             {% endfor %}
                         </select>
+                        <small class="text-muted">При автоматическом определении часовой пояс будет установлен системой после регистрации</small>
                     </div>
+                    <script>
+                        document.getElementById('auto_timezone').addEventListener('change', function() {
+                            document.getElementById('timezone').disabled = this.checked;
+                        });
+                    </script>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
                     </div>
