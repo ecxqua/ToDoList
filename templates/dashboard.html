@@ -6,6 +6,14 @@
 <div class="row mb-4">
     <div class="col">
         <h1>Ваши задачи</h1>
+        <div class="mt-2">
+            <a href="{{ url_for('send_reminders') }}" class="btn btn-sm btn-outline-info" title="Просмотр расписанных напоминаний">
+                <i class="bi bi-bell"></i> Проверить напоминания
+            </a>
+            <a href="{{ url_for('send_reminders', test_mode=1) }}" class="btn btn-sm btn-outline-warning" title="Отправить тестовые напоминания">
+                <i class="bi bi-envelope-check"></i> Тестовые напоминания
+            </a>
+        </div>
     </div>
     <div class="col-auto">
         <a href="{{ url_for('new_task') }}" class="btn btn-primary">+ Новая задача</a>

@@ -82,7 +82,7 @@
 /* Ночная тема в фиолетовых тонах */
 body.dark-theme {
     background-color: #0f0821;
-    color: #e0e0e0;
+    color: #ffffff;
 }
 
 /* Стилизация карточек в ночной теме */
@@ -94,7 +94,18 @@ body.dark-theme .card {
 body.dark-theme .card-header {
     background-color: #21164a;
     border-color: #2e1b4d;
-    color: #e0e0e0;
+    color: #ffffff;
+}
+
+/* Футер в темной теме */
+body.dark-theme footer {
+    background-color: #0f0821 !important;
+    border-top: 1px solid #2e1b4d;
+    color: #ffffff;
+}
+
+body.dark-theme footer .text-muted {
+    color: #d1c8ff !important;
 }
 
 /* Задачи в темной теме */
@@ -110,11 +121,15 @@ body.dark-theme .task-card:hover {
 body.dark-theme .alert-info {
     background-color: #21164a;
     border-color: #372a6a;
-    color: #e0e0e0;
+    color: #ffffff;
 }
 
 body.dark-theme .text-muted {
-    color: #000000 !important;
+    color: #d1c8ff !important;
+}
+
+body.dark-theme .alert {
+    color: #ffffff;
 }
 
 /* Ссылки */
@@ -133,11 +148,27 @@ body.dark-theme .table {
 }
 
 body.dark-theme .table-striped > tbody > tr:nth-of-type(odd) > * {
-    background-color: #1a1030;
+    background-color: #21164a;
+}
+
+body.dark-theme .table-striped > tbody > tr:nth-of-type(even) > * {
+    background-color: #2d1b4a;
 }
 
 body.dark-theme .table-hover > tbody > tr:hover > * {
+    background-color: #3d2a5c;
+}
+
+body.dark-theme .table thead th {
     background-color: #21164a;
+    color: #fff;
+}
+
+/* Улучшение контраста в таблицах */
+body.dark-theme .table td, 
+body.dark-theme .table th {
+    border-color: #3d2a5c;
+    padding: 10px;
 }
 
 /* Навигация в ночной теме */

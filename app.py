@@ -761,19 +761,30 @@ def send_reminders():
             add_log(f"Текущее время пользователя: {now.strftime('%d.%m.%Y %H:%M:%S')}")
             add_log(f"Срок с учетом часового пояса: {localized_due_date.strftime('%d.%m.%Y %H:%M:%S')}")
             add_log(f"Часов до срока: {hours_until_due:.2f}, Порог напоминания: {reminder_hours}")
-
-            if 0 <= hours_until_due <= float(reminder_hours):
+            
+            # Проверяем, есть ли запрос на тестовую отправку
+            is_test_mode = request.args.get('test_mode') == '1'
+            
+            # Отправляем напоминание, если время меньше порога или включен тестовый режим
+            if is_test_mode or (0 <= hours_until_due <= float(reminder_hours)):
                 add_log(f"Пора отправлять напоминание! Осталось {hours_until_due:.2f} часов до срока.", "success")
                 try:
+                    # Определяем, это тестовый режим или нет
+                    subject = 'Тестовое напоминание о задаче' if is_test_mode else 'Напоминание о задаче'
+                    
                     msg = Message(
-                        'Напоминание о задаче',
+                        subject,
                         sender=app.config['MAIL_USERNAME'],
                         recipients=[email]
                     )
+                    
+                    # Добавляем пометку о тестовом режиме, если нужно
+                    test_mode_note = "ТЕСТОВЫЙ РЕЖИМ: Это тестовое напоминание, отправленное вручную для проверки системы.\n\n" if is_test_mode else ""
+                    
                     msg.body = f"""
 Здравствуйте, {username}!
 
-Напоминаем о предстоящей задаче:
+{test_mode_note}Напоминаем о предстоящей задаче:
 Название: {title}
 Срок выполнения: {localized_due_date.strftime('%d.%m.%Y')}
 
@@ -785,10 +796,13 @@ def send_reminders():
                     add_log(f"Email успешно отправлен на {email}", "success")
                     reminders_sent += 1
 
-                    # Отключаем напоминание после отправки
-                    c.execute("UPDATE tasks SET send_reminder = 0 WHERE id = ?", (task_id,))
-                    conn.commit()
-                    add_log(f"Напоминание отключено (флаг send_reminder установлен в 0)")
+                    # Отключаем напоминание только если это НЕ тестовый режим
+                    if not is_test_mode:
+                        c.execute("UPDATE tasks SET send_reminder = 0 WHERE id = ?", (task_id,))
+                        conn.commit()
+                        add_log(f"Напоминание отключено (флаг send_reminder установлен в 0)")
+                    else:
+                        add_log(f"Тестовый режим: напоминание оставлено активным для будущих проверок", "info")
                 except Exception as e:
                     add_log(f"Ошибка отправки напоминания для задачи {task_id}: {str(e)}", "error")
             else:
