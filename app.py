@@ -535,7 +535,9 @@ def update_profile():
     
     username = request.form['username']
     email = request.form['email']
-    timezone_name = request.form['timezone']
+    
+    # Получаем часовой пояс из формы
+    timezone_name = request.form.get('timezone', 'Europe/Moscow')
     
     # Проверяем, было ли выбрано автоматическое определение часового пояса
     auto_timezone = 'auto_timezone' in request.form
@@ -939,6 +941,10 @@ def set_timezone():
     Устанавливает часовой пояс для пользователя через AJAX запрос
     """
     try:
+        # Логируем все данные запроса для отладки
+        logger.debug(f"Получен запрос на установку часового пояса: form={request.form}, json={request.get_json(silent=True)}")
+        
+        # Определяем формат данных (JSON или form data)
         data = request.get_json(silent=True)
         if data is None:
             # Если данные не в формате JSON, пробуем получить из формы
@@ -948,12 +954,18 @@ def set_timezone():
             timezone_name = data.get('timezone')
             auto_detected = data.get('auto_detected', False)
         
+        logger.debug(f"Обработанные данные: timezone_name={timezone_name}, auto_detected={auto_detected}")
+        
         if not timezone_name:
-            return jsonify({'success': False, 'error': 'Не указан часовой пояс'}), 400
+            error_msg = 'Не указан часовой пояс'
+            logger.warning(error_msg)
+            return jsonify({'success': False, 'error': error_msg}), 400
             
         # Проверяем, существует ли такой часовой пояс
         if timezone_name not in all_timezones:
-            return jsonify({'success': False, 'error': 'Неверный часовой пояс'}), 400
+            error_msg = f'Неверный часовой пояс: {timezone_name}'
+            logger.warning(error_msg)
+            return jsonify({'success': False, 'error': error_msg}), 400
             
         # Сохраняем в сессию
         session['timezone'] = timezone_name
@@ -969,11 +981,14 @@ def set_timezone():
                 c.execute("SELECT auto_timezone FROM users WHERE id = ?", (session['user_id'],))
                 result = c.fetchone()
                 
-                if result and result[0]:
+                # Проверяем, есть ли результат и включено ли автоопределение
+                if result and result[0] == 1:
                     # Если включено, обновляем часовой пояс
                     c.execute("UPDATE users SET timezone = ? WHERE id = ?", (timezone_name, session['user_id']))
                     conn.commit()
                     logger.info(f"Часовой пояс пользователя (ID: {session['user_id']}) автоматически обновлен на {timezone_name}")
+                else:
+                    logger.info(f"Автоопределение отключено для пользователя (ID: {session['user_id']}), часовой пояс не обновлен")
             else:
                 # Если это ручная установка через форму, просто обновляем часовой пояс
                 c.execute("UPDATE users SET timezone = ? WHERE id = ?", (timezone_name, session['user_id']))

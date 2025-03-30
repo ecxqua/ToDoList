@@ -53,7 +53,29 @@
                         
                         <script>
                         document.getElementById('auto_timezone').addEventListener('change', function() {
-                            document.getElementById('timezone_select').disabled = this.checked;
+                            const isAutoDetect = this.checked;
+                            document.getElementById('timezone_select').disabled = isAutoDetect;
+                            
+                            // Если включено автоопределение, получаем часовой пояс и устанавливаем его
+                            if (isAutoDetect) {
+                                const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                                if (userTimezone) {
+                                    // Отображаем что часовой пояс определен
+                                    document.getElementById('current-timezone').textContent = userTimezone + ' (автоматически)';
+                                    
+                                    // Находим опцию с подходящим значением и выбираем её, если она есть
+                                    const selectElement = document.getElementById('timezone_select');
+                                    for (let i = 0; i < selectElement.options.length; i++) {
+                                        if (selectElement.options[i].value === userTimezone) {
+                                            selectElement.selectedIndex = i;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    // НЕ отправляем AJAX запрос - это сделает форма при отправке
+                                    // При сохранении формы мы отправим timezone и auto_timezone флаг вместе
+                                }
+                            }
                         });
                         </script>
                         <div class="row mb-3">
